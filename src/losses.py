@@ -1,5 +1,5 @@
 import numpy as np
-from activations import get_activation
+from src.activations import get_activation
 from typing import Literal, Callable
 
 LossType = Literal["mse", "bce", "cce"]
