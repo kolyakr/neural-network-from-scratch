@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Callable, Literal, Union
 
-ActivationType = Literal["relu", "sigmoid", "softmax"]
+ActivationType = Literal["relu", "sigmoid", "softmax", "linear"]
 ActFunc = Callable[[np.ndarray], np.ndarray]
 
 def relu(z: np.ndarray) -> np.ndarray:
@@ -17,7 +17,7 @@ def relu(z: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: Activated output, same shape as z.
     """
-    return z.clip(0.0)
+    return z.clip(0.0,)
 
 def relu_derivative(z: np.ndarray) -> np.ndarray:
     """
@@ -80,7 +80,22 @@ def softmax(z: np.ndarray) -> np.ndarray:
         np.ndarray: Probabilities, same shape as z, rows sum to 1.
     """
     exp_z = np.exp(z)
-    return exp_z / np.sum(exp_z)
+    return exp_z / np.sum(exp_z, axis=0)
+
+def linear(z: np.ndarray) -> np.ndarray:
+    """
+    Linear (Identity) activation function.
+    Used for the output layer in Regression tasks.
+    Returns input unchanged.
+    """
+    return z
+
+def linear_derivative(z: np.ndarray) -> np.ndarray:
+    """
+    Derivative of Linear function.
+    The slope of y = x is always 1.
+    """
+    return np.ones_like(z)
 
 def get_activation(name: ActivationType) -> Union[tuple[ActFunc, ActFunc], ActFunc]:
     """
@@ -90,7 +105,7 @@ def get_activation(name: ActivationType) -> Union[tuple[ActFunc, ActFunc], ActFu
     Used in NeuralNetwork to configure layers dynamically.
     
     Args:
-        name (ActivationType): Name of the activation ("relu", "sigmoid", "softmax").
+        name (ActivationType): Name of the activation ("relu", "sigmoid", "softmax", "linear").
     
     Returns:
         Union[tuple[ActFunc, ActFunc], ActFunc]: Function(s) for forward/backward passes.
@@ -104,4 +119,6 @@ def get_activation(name: ActivationType) -> Union[tuple[ActFunc, ActFunc], ActFu
         return (sigmoid, sigmoid_derivative)
     if name == "softmax":
         return (softmax)
+    if name == "linear":
+        return (linear, linear_derivative)
     raise ValueError(f"Unknown activation: {name}")
