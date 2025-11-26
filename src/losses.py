@@ -1,13 +1,9 @@
 import numpy as np
-from src.activations import get_activation
 from typing import Literal, Callable
 
 LossType = Literal["mse", "bce", "cce"]
 LossFunc = Callable[[np.ndarray, np.ndarray], float]
 Derivative = Callable[[np.ndarray, np.ndarray], np.ndarray]
-
-sigmoid_func = get_activation("sigmoid")[0] 
-softmax_func = get_activation("softmax")
 
 def mse(y_hat: np.ndarray, y_true: np.ndarray) -> float:
     """
@@ -15,6 +11,9 @@ def mse(y_hat: np.ndarray, y_true: np.ndarray) -> float:
     
     Used for Regression.
     
+    Formula:
+        $$ L = \\frac{1}{N} \\sum (\\hat{y} - y)^2 $$
+
     Args:
         y_hat (np.ndarray): The final active predictions.
         y_true (np.ndarray): The actual target values.
@@ -22,11 +21,14 @@ def mse(y_hat: np.ndarray, y_true: np.ndarray) -> float:
     Returns:
         float: The sum of squared errors.
     """
-    return np.mean((y_hat - y_true)**2)
+    return np.mean(np.square(y_hat - y_true))
 
 def mse_derivative(y_hat: np.ndarray, y_true: np.ndarray) -> np.ndarray:
     """
-    Derivative of MSE.
+    Derivative of MSE with respect to y_hat.
+    
+    Formula:
+        $$ \\frac{\\partial L}{\\partial \\hat{y}} = \\frac{2}{N} (\\hat{y} - y) $$
     
     Args:
         y_hat (np.ndarray): Predictions.
@@ -35,80 +37,87 @@ def mse_derivative(y_hat: np.ndarray, y_true: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: Gradient vector.
     """
-    return 2 * (y_hat - y_true) / y_true.size
+    return 2 * (y_hat - y_true) 
 
-def binary_cross_entropy(z: np.ndarray, y_true: np.ndarray) -> float:
+def binary_cross_entropy(y_hat: np.ndarray, y_true: np.ndarray) -> float:
     """
     Binary Cross Entropy (BCE).
     
-    Used for Binary Classification (0 or 1).
-    EXPECTS LOGITS (z) as input, not probabilities. This function applies 
-    Sigmoid internally for numerical stability.
+    Expects probabilities (y_hat), not logits.
+    
+    Formula:
+        $$ L = - \\frac{1}{N} \\sum [y \\cdot \\log(\\hat{y}) + (1 - y) \\cdot \\log(1 - \\hat{y})] $$
     
     Args:
-        z (np.ndarray): Raw logits (pre-activation).
+        y_hat (np.ndarray): Activated predictions (after Sigmoid).
         y_true (np.ndarray): Targets (0 or 1).
         
     Returns:
         float: The loss value.
     """
-    p = sigmoid_func(z)
-    
     epsilon = 1e-15
-    p = np.clip(p, epsilon, 1 - epsilon)
+    # Clip to prevent log(0)
+    p = np.clip(y_hat, epsilon, 1 - epsilon)
     
     return -np.mean(y_true * np.log(p) + (1 - y_true) * np.log(1 - p))
 
-def binary_cross_entropy_derivative(z: np.ndarray, y_true: np.ndarray) -> np.ndarray:
+def binary_cross_entropy_derivative(y_hat: np.ndarray, y_true: np.ndarray) -> np.ndarray:
     """
-    Derivative of BCE with respect to Logits (z).
+    Derivative of BCE with respect to y_hat.
     
-    Formula simplifiction: (Sigmoid(z) - y)
+    Formula:
+        $$ \\frac{\\partial L}{\\partial \\hat{y}} = - \\frac{y}{\\hat{y}} + \\frac{1 - y}{1 - \\hat{y}} $$
     
     Args:
-        z (np.ndarray): Raw logits.
+        y_hat (np.ndarray): Predictions (probabilities).
         y_true (np.ndarray): Targets.
         
     Returns:
-        np.ndarray: Gradient vector.
+        np.ndarray: Gradient vector (dA).
     """
-    return sigmoid_func(z) - y_true
+    epsilon = 1e-15
+    y_hat = np.clip(y_hat, epsilon, 1 - epsilon)
+    return (-(y_true / y_hat) + ((1 - y_true) / (1 - y_hat)))
 
-def categorical_cross_entropy(z: np.ndarray, y_true: np.ndarray) -> float:
+def categorical_cross_entropy(y_hat: np.ndarray, y_true: np.ndarray) -> float:
     """
     Categorical Cross Entropy (CCE).
     
-    Used for Multi-class Classification.
-    EXPECTS LOGITS (z) as input. Applies Softmax internally.
+    Expects probabilities (y_hat).
+    
+    Formula:
+        $$ L = - \\frac{1}{N} \\sum \\sum y \\cdot \\log(\\hat{y}) $$
     
     Args:
-        z (np.ndarray): Raw logits (N samples, C classes).
-        y_true (np.ndarray): One-hot encoded targets (N, C).
+        y_hat (np.ndarray): Activated predictions (after Softmax).
+        y_true (np.ndarray): One-hot encoded targets.
         
     Returns:
         float: The loss value.
     """
-    p = softmax_func(z)
-    
     epsilon = 1e-15
-    p = np.clip(p, epsilon, 1.0)
+    # Clip to prevent log(0)
+    p = np.clip(y_hat, epsilon, 1.0)
     
     return -np.mean(np.sum((y_true * np.log(p)), axis=1))
 
-def categorical_cross_entropy_derivative(z: np.ndarray, y_true: np.ndarray) -> np.ndarray:
+def categorical_cross_entropy_derivative(y_hat: np.ndarray, y_true: np.ndarray) -> np.ndarray:
     """
-    Derivative of CCE with respect to Logits (z).
+    Derivative of CCE with respect to y_hat.
     
-    Formula simplification: (Softmax(z) - y)
+    Formula:
+        $$ \\frac{\\partial L}{\\partial \\hat{y}} = - \\frac{y}{\\hat{y}} $$
     
     Args:
-        z (np.ndarray): Raw logits.
+        y_hat (np.ndarray): Predictions (probabilities).
         y_true (np.ndarray): One-hot encoded targets.
         
     Returns:
-        np.ndarray: Gradient vector.
+        np.ndarray: Gradient vector (dA).
     """
-    return softmax_func(z) - y_true
+    epsilon = 1e-15
+    y_hat = np.clip(y_hat, epsilon, 1.0)
+    return - (y_true / y_hat)
 
 def get_loss(name: LossType) -> tuple[LossFunc, Derivative]:
     """
